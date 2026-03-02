@@ -1,6 +1,6 @@
 from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 from time import time
-from typing import Literal, Union, List, Optional, Dict
+from typing import Literal, Union, List, Optional, Dict, Any
 from uuid import uuid4
 
 from endpoints.OAI.types.common import UsageStats, CommonCompletionRequest
@@ -66,7 +66,7 @@ class ChatCompletionRequest(CommonCompletionRequest):
         description="Aliases: chat_template_kwargs",
     )
     enable_thinking: Optional[bool] = None
-    thinking: Optional[bool] = None
+    thinking: Optional[Union[bool, Dict[str, Any]]] = None
     response_prefix: Optional[str] = None
     model: Optional[str] = None
     include_reasoning: Optional[bool] = True
@@ -95,11 +95,23 @@ class ChatCompletionRequest(CommonCompletionRequest):
         """Support clients that send thinking flags at the top-level."""
         template_vars = dict(self.template_vars or {})
 
+        thinking_value = self.thinking
+        if isinstance(thinking_value, dict):
+            thinking_type = str(thinking_value.get("type", "")).lower()
+            if thinking_type == "disabled":
+                thinking_value = False
+            elif thinking_type == "enabled":
+                thinking_value = True
+            else:
+                thinking_value = None
+
         if self.enable_thinking is not None and "enable_thinking" not in template_vars:
             template_vars["enable_thinking"] = self.enable_thinking
 
-        if self.thinking is not None and "thinking" not in template_vars:
-            template_vars["thinking"] = self.thinking
+        if thinking_value is not None and "thinking" not in template_vars:
+            template_vars["thinking"] = thinking_value
+        if thinking_value is not None and "enable_thinking" not in template_vars:
+            template_vars["enable_thinking"] = thinking_value
 
         self.template_vars = template_vars
         return self
