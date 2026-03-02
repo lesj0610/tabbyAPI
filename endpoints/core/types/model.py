@@ -22,6 +22,8 @@ class ModelCardParameters(BaseModel):
     chunk_size: Optional[int] = 2048
     tokenizer_mode: Optional[str] = "auto"
     mistral_tokenizer_models: Optional[List[str]] = Field(default_factory=list)
+    attention_backend: Optional[str] = "auto"
+    resolved_attention_backend: Optional[str] = None
     prompt_template: Optional[str] = None
     prompt_template_content: Optional[str] = None
     use_vision: Optional[bool] = False
