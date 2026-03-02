@@ -483,6 +483,30 @@ class ExllamaV3Container(BaseModelContainer):
 
         return model_card
 
+    def should_sync_flashinfer_runtime(self) -> bool:
+        return (
+            self.resolved_attention_backend == "flashinfer"
+            and torch.cuda.is_available()
+        )
+
+    def sync_flashinfer_runtime(self, context: str):
+        if not self.should_sync_flashinfer_runtime():
+            return
+
+        try:
+            device_count = torch.cuda.device_count()
+            for device_idx in range(device_count):
+                with torch.cuda.device(device_idx):
+                    torch.cuda.synchronize()
+        except Exception as exc:
+            # Surface async CUDA faults at a controlled boundary instead of
+            # letting them explode later during teardown/free.
+            logger.warning(
+                "CUDA synchronize failed during {}: {}",
+                context,
+                exc,
+            )
+
     async def wait_for_jobs(self, skip_wait: bool = False):
         """
         Polling to wait for any active generation jobs to complete.
@@ -653,6 +677,8 @@ class ExllamaV3Container(BaseModelContainer):
                 # Wait for other jobs to finish
                 await self.wait_for_jobs(kwargs.get("skip_wait"))
 
+            self.sync_flashinfer_runtime("model unload (pre)")
+
             # Clear the image embedding cache
             clear_image_embedding_cache()
 
@@ -675,6 +701,7 @@ class ExllamaV3Container(BaseModelContainer):
             # Cleanup the generator from any pending jobs
             if self.generator is not None:
                 await self.generator.close()
+                self.sync_flashinfer_runtime("model unload (post-generator-close)")
                 self.generator = None
 
             gc.collect()
@@ -889,8 +916,9 @@ class ExllamaV3Container(BaseModelContainer):
             ):
                 yield generation_chunk
         finally:
+            self.sync_flashinfer_runtime("request finalization")
             # Clean up and remove the job from active IDs
-            del self.active_job_ids[request_id]
+            self.active_job_ids.pop(request_id, None)
 
     def handle_logprobs(self, result: dict, generation: dict):
         top_tokens = unwrap(
