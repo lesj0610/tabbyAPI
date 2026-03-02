@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from time import time
 from typing import List, Literal, Optional, Union
 
-from common.config_models import ATTENTION_BACKENDS, LoggingConfig
+from common.config_models import LoggingConfig
 from common.tabby_config import config
 
 
@@ -81,13 +81,6 @@ class ModelLoadRequest(BaseModel):
     # Config arguments
     backend: Optional[str] = Field(
         description="Backend to use",
-        default=None,
-    )
-    attention_backend: Optional[ATTENTION_BACKENDS] = Field(
-        description=(
-            "Attention backend policy for exllamav3 "
-            "(auto, flash_attn, flashinfer)"
-        ),
         default=None,
     )
     max_seq_len: Optional[int] = Field(

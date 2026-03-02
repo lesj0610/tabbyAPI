@@ -120,7 +120,12 @@ class ExllamaV3Container(BaseModelContainer):
 
         self.model_dir = model_directory
         self.hf_model = hf_model
-        requested_attention_backend = unwrap(kwargs.get("attention_backend"), "auto")
+        requested_attention_backend = coalesce(
+            kwargs.get("attention_backend"),
+            config.model.attention_backend,
+            "auto",
+        )
+        requested_attention_backend = unwrap(requested_attention_backend, "auto")
         if requested_attention_backend not in ("auto", "flash_attn", "flashinfer"):
             raise ValueError(
                 "Invalid attention_backend "
