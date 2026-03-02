@@ -11,7 +11,7 @@ from typing import List, Literal, Optional, Union
 
 CACHE_SIZES = Literal["FP16", "Q8", "Q6", "Q4"]
 CACHE_TYPE = Union[CACHE_SIZES, constr(pattern=r"^[2-8]\s*,\s*[2-8]$")]
-ATTENTION_BACKENDS = Literal["auto", "flash_attn", "flashinfer"]
+ATTENTION_BACKENDS = Literal["auto", "flash_attn", "flashinfer", "sdpa"]
 
 
 class Metadata(BaseModel):
@@ -177,9 +177,9 @@ class ModelConfig(BaseConfigModel):
         "auto",
         description=(
             "Attention backend policy for exllamav3 (default: auto).\n"
-            "Options: auto, flash_attn, flashinfer.\n"
-            "This chooses the cache-capable attention backend at model init time.\n"
-            "SDPA remains an internal fallback for non-cache paths and unsupported cases."
+            "Options: auto, flash_attn, flashinfer, sdpa.\n"
+            "This chooses the attention backend at model init time.\n"
+            "Auto uses model capabilities and known backend constraints to select a fixed path."
         ),
     )
     max_seq_len: Optional[int] = Field(

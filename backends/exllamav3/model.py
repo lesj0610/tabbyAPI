@@ -20,7 +20,11 @@ from exllamav3 import (
     Model,
     Tokenizer,
 )
-from exllamav3.modules.attn import has_flash_attn_backend, has_flashinfer_backend
+from exllamav3.modules.attn import (
+    has_flash_attn_backend,
+    has_flashinfer_backend,
+    resolve_auto_attention_backend,
+)
 from exllamav3.cache import CacheLayer_quant
 from backends.exllamav3.grammar import ExLlamaV3Grammar
 from loguru import logger
@@ -126,11 +130,11 @@ class ExllamaV3Container(BaseModelContainer):
             "auto",
         )
         requested_attention_backend = unwrap(requested_attention_backend, "auto")
-        if requested_attention_backend not in ("auto", "flash_attn", "flashinfer"):
+        if requested_attention_backend not in ("auto", "flash_attn", "flashinfer", "sdpa"):
             raise ValueError(
                 "Invalid attention_backend "
                 f"'{requested_attention_backend}'. "
-                "Expected one of: auto, flash_attn, flashinfer."
+                "Expected one of: auto, flash_attn, flashinfer, sdpa."
             )
         self.attention_backend = requested_attention_backend
         requested_tokenizer_mode, mode_message = normalize_tokenizer_mode(
@@ -292,21 +296,17 @@ class ExllamaV3Container(BaseModelContainer):
                 raise RuntimeError(message)
             check_package_version("flashinfer-python", "0.6.3")
             self.resolved_attention_backend = "flashinfer"
+        elif self.attention_backend == "sdpa":
+            self.resolved_attention_backend = "sdpa"
         else:
-            if flash_attn_available:
-                self.resolved_attention_backend = "flash_attn"
-            elif flashinfer_available:
+            resolved_backend = resolve_auto_attention_backend(
+                self.config,
+                flash_attn_available,
+                flashinfer_available,
+            )
+            if resolved_backend == "flashinfer":
                 check_package_version("flashinfer-python", "0.6.3")
-                self.resolved_attention_backend = "flashinfer"
-            else:
-                message = (
-                    "Unable to run ExllamaV3 because no supported cache-capable "
-                    "attention backend is available.\n"
-                    "Install flash_attn or flashinfer-python, and use Ampere-class "
-                    "CUDA GPUs or newer."
-                )
-                logger.warning(message)
-                raise RuntimeError(message)
+            self.resolved_attention_backend = resolved_backend
 
         logger.info(
             "Attention backend policy: {} (resolved: {})",

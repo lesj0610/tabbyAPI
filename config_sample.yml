@@ -79,9 +79,9 @@ model:
   backend:
 
   # Attention backend policy for exllamav3 (default: auto).
-  # Options: auto, flash_attn, flashinfer
-  # Picks the cache-capable attention backend once at model init time.
-  # SDPA remains an internal fallback for non-cache paths and unsupported cases.
+  # Options: auto, flash_attn, flashinfer, sdpa
+  # Picks the attention backend once at model init time.
+  # Auto uses model capabilities and known backend constraints to choose a fixed path.
   attention_backend: auto
 
   # Max sequence length (default: min(max_position_embeddings, cache_size)).
